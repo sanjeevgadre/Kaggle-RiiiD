@@ -10,8 +10,6 @@ Created on Tue Nov 10 10:34:03 2020
 import pandas as pd
 import numpy as np
 import tables
-import datetime
-import numba
 
 #%% Helper variables
 datapath = './data/'
@@ -24,7 +22,6 @@ epsilon = 10**(-5)
 epsilon_batch = 10**(-2)
 
 #%% Helper functions
-@numba.jit(nopython = True)
 def get_curr_mean_scores(userscores):
     '''
     Calculates the part-wise median scores for all users
@@ -35,14 +32,16 @@ def get_curr_mean_scores(userscores):
         Partwise median scores for all users.
 
     '''
+    curr_mean_scores = np.zeros(7)
     if userscores.size == 0:
         curr_mean_scores = np.zeros(7)
     else:
         curr_mean_scores = userscores[:, 1:].mean(axis = 0)
+        
+    curr_mean_scores = curr_mean_scores.astype(float)
          
     return curr_mean_scores
 
-@numba.jit
 def setup_user_record(i, userscores):
     '''
     If a user with currently no record in the userscores array is encountered, adds a record for such a user to userscores
@@ -65,8 +64,9 @@ def setup_user_record(i, userscores):
         userscores = np.append(userscores, user_record, axis = 0)
     
     return userscores
+    
+    return
 
-@numba.jit
 def get_reward(i):
     '''
     For the record gets the reward and the relevant part to which the question/lecture belongs.
@@ -89,7 +89,6 @@ def get_reward(i):
        
     return reward, part
 
-@numba.jit
 def get_q_reward(i):
     '''
     For the question, rewards the user if answered correctly. Also updates the probability of correctly answering the question. Additionally rewards the user if prior question's explanation was viewed and also updates the total views of the prior question.'
@@ -132,7 +131,6 @@ def get_q_reward(i):
     
     return reward, part
 
-@numba.jit
 def get_l_reward(i):
     '''
     For the lecture, rewards the user for the lecture view. Also updates the number of views of the lecture.
@@ -161,7 +159,6 @@ def get_l_reward(i):
         
     return reward, part
 
-@numba.jit
 def update_userscores(i, reward, part, userscores):
     '''
     Updates the relevant score for the user
@@ -182,7 +179,8 @@ def update_userscores(i, reward, part, userscores):
     Updated userscores.
 
     '''
-    userid_ = np.where(userscores[:, 0] == batch[i, 1])
+    part = np.int(part)
+    userid_ = np.where(userscores[:, 0] == batch[i, 1])[0][0]
     userscores[userid_, part] += reward
     
     return userscores
@@ -200,18 +198,15 @@ userscores = pd.DataFrame(data = None, columns = ['user_id', 'score_1', 'score_2
 ques.loc[:, ['attempts', 'correct_attempt_prob', 'prior_q_expln_views']] = 0.
 lecs.loc[:, ['views']] = 0.
 
-# ques columns - ['question_id', 'part', 'attempts', 'correct_attempt_prob', 'prior_q_expln_views']
-# lecs columns - ['lecture_id', 'part', 'views']
-
 # Converting dataframes to numpy arrays
-ques = ques.to_numpy()
-lecs = lecs.to_numpy()
-userscores = userscores.to_numpy()
+ques = ques.to_numpy(dtype = float)
+lecs = lecs.to_numpy(dtype = int)
+userscores = userscores.to_numpy(dtype = float)
 
 #%% Get recorded data
-# userscores = pd.read_csv(datapath + 'userscores.csv')
-# ques = pd.read_csv(datapath + 'ques.csv')
-# lecs = pd.read_csv(datapath + 'lecs.csv')
+# userscores = pd.read_csv(datapath + 'userscores.csv', header = None)
+# ques = pd.read_csv(datapath + 'ques.csv', header = None)
+# lecs = pd.read_csv(datapath + 'lecs.csv', header = None)
 
 #%% Working with train dataset to arrive at user scores
 batch_size = int(p_read * train_n)
@@ -228,22 +223,20 @@ while iterate and batch_count < 1:
     batch = pd.read_hdf('./data/train.h5', 'df', mode = 'r', where = pd.Index(batch_idx))
     batch = batch.sample(frac = 1)
     batch.reset_index(inplace = True, drop = True)
-    batch = batch.to_numpy()
+    batch = batch.to_numpy(dtype = float)
     
-    # ['row_id', 'user_id', 'content_id', 'content_type_id', 'answered_correctly', 'prior_question_had_explanation']
-    # batch_max_reward = 0
     iterate_batch = True
     minibatch_count = 0
     
-    while iterate_batch and minibatch_count < 1:
+    while iterate_batch and minibatch_count < 150:
         minibatch_count += 1
         print('Processing minibatch: ', minibatch_count)
         
         # Setup a minibatch
         minibatch_idx = np.random.choice(batch_size, minibatch_size, replace = False)
-        minibatch_max_reward = 0
+        minibatch_max_reward = 0.
         curr_mean_scores = get_curr_mean_scores(userscores)
-        '''
+        
         # for each record in the minibatch
         for i in minibatch_idx:
             # If the user in the record does not currently exist in the userscores array, create a new
@@ -255,7 +248,7 @@ while iterate and batch_count < 1:
             
             # update the relevant part score for the user
             userscores = update_userscores(i, reward, part, userscores)
-                        
+                       
             # Is the reward earned the maximum absolute reward for this minibatch?
             if np.abs(reward) > minibatch_max_reward:
                 minibatch_max_reward = np.abs(reward)
@@ -278,8 +271,5 @@ while iterate and batch_count < 1:
     np.savetxt(datapath + 'lecs.csv', lecs, delimiter = ',')
     np.savetxt(datapath + 'userscores.csv', userscores, delimiter = ',')
     
-    # ques.to_csv(datapath + 'ques.csv', index = False)
-    # lecs.to_csv(datapath + 'lecs.csv', index = False)
-    # userscores.to_csv(datapath + 'userscores.csv', index = False)
-'''
 # datetime.timedelta(seconds=4004, microseconds=87446)
+#  datetime.timedelta(seconds=259, microseconds=175555)
