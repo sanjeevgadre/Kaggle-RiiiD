@@ -24,7 +24,8 @@ epsilon = 10**(-5)
 epsilon_batch = 10**(-2)
 
 #%% Helper functions
-def get_curr_mean_scores():
+@numba.jit(nopython = True)
+def get_curr_mean_scores(userscores):
     '''
     Calculates the part-wise median scores for all users
 
@@ -34,12 +35,36 @@ def get_curr_mean_scores():
         Partwise median scores for all users.
 
     '''
-    curr_mean_scores = userscores.iloc[:, 1:].mean(skipna = True).to_numpy()
-    for i in range(len(curr_mean_scores)):
-        if np.isnan(curr_mean_scores[i]):
-            curr_mean_scores[i] = 0
-            
+    if userscores.size == 0:
+        curr_mean_scores = np.zeros(7)
+    else:
+        curr_mean_scores = userscores[:, 1:].mean(axis = 0)
+         
     return curr_mean_scores
+
+@numba.jit
+def setup_user_record(i, userscores):
+    '''
+    If a user with currently no record in the userscores array is encountered, adds a record for such a user to userscores
+
+    Parameters
+    ----------
+    i : int
+        index identifier for the batch.
+    userscores : np.array
+        array of users' scores.
+
+    Returns
+    -------
+    Updated userscores.
+
+    '''
+    userid_ = batch[i, 1]
+    if np.array(np.where(userscores[:, 0] == userid_))[0].size == 0:
+        user_record = np.append(userid_, curr_mean_scores).reshape(1, 8)
+        userscores = np.append(userscores, user_record, axis = 0)
+    
+    return userscores
 
 @numba.jit
 def get_reward(i):
@@ -49,6 +74,7 @@ def get_reward(i):
     Parameters
     ----------
     i : int
+        index indentifier for the batch
         index identifier for the batch.
 
     Returns
@@ -57,21 +83,16 @@ def get_reward(i):
 
     '''
     if batch[i, 3] == 0:
-        print('Its a question!!')
-        #reward, part = get_q_reward(i)
-        if batch[i, 5] == 1:
-            print('Previous question had an explanation!!')
-            #reward = reward + get_e_reward(i)     
+        reward, part = get_q_reward(i)
     else:
-        print('Its a lecture!!')
-        #reward, part = get_l_reward(i)
+        reward, part = get_l_reward(i)
        
-    return #reward, part
+    return reward, part
 
 @numba.jit
 def get_q_reward(i):
     '''
-    For the question, rewards the user if answered correctly. Also updates the probability of correctly answering the question.
+    For the question, rewards the user if answered correctly. Also updates the probability of correctly answering the question. Additionally rewards the user if prior question's explanation was viewed and also updates the total views of the prior question.'
 
     Parameters
     ----------
@@ -85,16 +106,14 @@ def get_q_reward(i):
     '''
     
     qid = batch[i, 2]
-    # idx =  qid idx = ques.query('question_id == @qid').index
-    
-    # We use the fact that in ques question_id == index value
-    part = ques[qid, 1]
-    attempts = ques[qid, 2]
-    prob = ques[qid, 3]
-          
+    # Get the part number and current stats of the question
+    idx =  np.where(ques[:, 0] == qid)
+    _, part, attempts, prob, prior_views = ques[np.where(ques[:, 0] == qid)].flatten()
+         
+     # ques columns - ['question_id', 'part', 'attempts', 'correct_attempt_prob', 'prior_q_expln_views']
+    # Calculate the reward      
     reward = np.float(batch[i, 4]) - prob
-      
-    #update the question's attempts and correct_attempt_prob
+    # Update the question's statistics
     correct_attempts = attempts * prob
     if np.float(batch[i, 4]) == 1.:
         correct_attempts += 1
@@ -102,37 +121,16 @@ def get_q_reward(i):
     attempts += 1
     prob = correct_attempts / attempts
     
-    ques[qid, 2] = attempts
-    ques[qid, 3] = prob
+    ques[idx, 2] = attempts
+    ques[idx, 3] = prob
+    
+    if batch[i, 5] == 1:
+        prior_views += 1
+        reward += 1/prior_views
+        ques[idx, 4] = prior_views
+        
     
     return reward, part
-
-@numba.jit    
-def get_e_reward(i):
-    '''
-    For the question, rewards the user if explanation for the previous question was seen. Also updates the number of views of the explanation
-
-    Parameters
-    ----------
-    i : int
-        index identifier for the batch.
-
-    Returns
-    -------
-    The reward earned.
-
-    '''
-    qid = batch[i, 2]
-    # idx = ques.query('question_id == @qid').index
-    
-    views = ques[qid, 5]
-    views += 1
-    reward = 1 / views
-    
-    # update the number of views of the explanation
-    ques[qid, 5] = views
-        
-    return reward
 
 @numba.jit
 def get_l_reward(i):
@@ -150,18 +148,44 @@ def get_l_reward(i):
 
     '''
     lid = batch[i, 2]
-    #idx = lecs.query('lecture_id == @lid').index
+    # Get the part number and current views of the lecture
+    idx = np.where(lecs[:, 0] == lid)
+    _, part, views = lecs[idx].flatten()
     
-    part = lecs.loc[idx, 'part']
-    views = lecs.loc[idx, 'views']
+    # Calculate the reward
     views += 1
     reward = 1 / views
     
     # update the number of views of the explanation
-    lecs.loc[idx, 'views'] = views
+    lecs[idx, 2] = views
         
-    return reward.iloc[0], part.iloc[0]
+    return reward, part
+
+@numba.jit
+def update_userscores(i, reward, part, userscores):
+    '''
+    Updates the relevant score for the user
+
+    Parameters
+    ----------
+    i : int
+        Index identifier for the batch
+    reward : float
+        Reward earned for the question/lecture.
+    part : float
+        The part to which the question/lecture belongs.
+    userscores : np.array
+        Array of userscores.
+
+    Returns
+    -------
+    Updated userscores.
+
+    '''
+    userid_ = np.where(userscores[:, 0] == batch[i, 1])
+    userscores[userid_, part] += reward
     
+    return userscores
     
 #%% Getting the supplementary data files
 ques = pd.read_csv(datapath + 'questions.csv', usecols = ['question_id', 'part'])
@@ -175,6 +199,14 @@ userscores = pd.DataFrame(data = None, columns = ['user_id', 'score_1', 'score_2
                                                   'score_4', 'score_5', 'score_6', 'score_7'])
 ques.loc[:, ['attempts', 'correct_attempt_prob', 'prior_q_expln_views']] = 0.
 lecs.loc[:, ['views']] = 0.
+
+# ques columns - ['question_id', 'part', 'attempts', 'correct_attempt_prob', 'prior_q_expln_views']
+# lecs columns - ['lecture_id', 'part', 'views']
+
+# Converting dataframes to numpy arrays
+ques = ques.to_numpy()
+lecs = lecs.to_numpy()
+userscores = userscores.to_numpy()
 
 #%% Get recorded data
 # userscores = pd.read_csv(datapath + 'userscores.csv')
@@ -196,7 +228,9 @@ while iterate and batch_count < 1:
     batch = pd.read_hdf('./data/train.h5', 'df', mode = 'r', where = pd.Index(batch_idx))
     batch = batch.sample(frac = 1)
     batch.reset_index(inplace = True, drop = True)
+    batch = batch.to_numpy()
     
+    # ['row_id', 'user_id', 'content_id', 'content_type_id', 'answered_correctly', 'prior_question_had_explanation']
     # batch_max_reward = 0
     iterate_batch = True
     minibatch_count = 0
@@ -205,31 +239,23 @@ while iterate and batch_count < 1:
         minibatch_count += 1
         print('Processing minibatch: ', minibatch_count)
         
+        # Setup a minibatch
         minibatch_idx = np.random.choice(batch_size, minibatch_size, replace = False)
         minibatch_max_reward = 0
-        curr_mean_scores = get_curr_mean_scores()
-        
-        # Identify users in minibatch that are not in userscores
-        minibatch_userids = pd.Series(batch.loc[minibatch_idx, 'user_id'].unique())
-        newusers = minibatch_userids[~minibatch_userids.isin(userscores.user_id)]
-        # Form records for newusers with part scores equal to current mean scores
-        newusers = newusers.to_numpy().reshape(-1, 1)
-        newusers = np.concatenate([newusers, np.array(len(newusers) * [curr_mean_scores])], 
-                                  axis = 1)
-        newusers = pd.DataFrame(data = newusers, columns = userscores.columns)
-        # For new users append records in userscores
-        userscores = userscores.append(newusers, ignore_index = True)
-        
-        batch = batch.to_numpy()
+        curr_mean_scores = get_curr_mean_scores(userscores)
+        '''
+        # for each record in the minibatch
         for i in minibatch_idx:
-            _ = get_reward(i)
-            #reward, part = get_reward(i)
+            # If the user in the record does not currently exist in the userscores array, create a new
+            # record and assign the user current mean scores
+            userscores = setup_user_record(i, userscores)
             
-            '''
+            # Get the part number and the reward earned for the question/lecture
+            reward, part = get_reward(i)
+            
             # update the relevant part score for the user
-            idx = userscores.query('user_id == @batch.user_id[@i]').index
-            userscores.iloc[idx, part] += reward
-            
+            userscores = update_userscores(i, reward, part, userscores)
+                        
             # Is the reward earned the maximum absolute reward for this minibatch?
             if np.abs(reward) > minibatch_max_reward:
                 minibatch_max_reward = np.abs(reward)
@@ -248,10 +274,12 @@ while iterate and batch_count < 1:
         iterate = False
         
     # Save the updated userscores, ques and lecs files
-    ques.to_csv(datapath + 'ques.csv', index = False)
-    lecs.to_csv(datapath + 'lecs.csv', index = False)
-    userscores.to_csv(datapath + 'userscores.csv', index = False)
+    np.savetxt(datapath + 'ques.csv', ques, delimiter = ',')
+    np.savetxt(datapath + 'lecs.csv', lecs, delimiter = ',')
+    np.savetxt(datapath + 'userscores.csv', userscores, delimiter = ',')
     
-    '''
-
+    # ques.to_csv(datapath + 'ques.csv', index = False)
+    # lecs.to_csv(datapath + 'lecs.csv', index = False)
+    # userscores.to_csv(datapath + 'userscores.csv', index = False)
+'''
 # datetime.timedelta(seconds=4004, microseconds=87446)
