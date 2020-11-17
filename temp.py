@@ -5,10 +5,10 @@ Created on Thu Nov 12 15:46:54 2020
 
 @author: sanjeev
 """
+import pandas as pd
 
-foo = pd.Series(data = np.zeros(minibatch_size))
-bar = pd.Series(data = np.zeros(minibatch_size))
-
-tic = datetime.datetime.now()
-foo = pd.Series(minibatch_idx).apply(lambda x: get_reward(x))
-toc = datetime.datetime.now()
+datapath = './data/'
+try:
+    foo = pd.read_csv(datapath + 'doesnotexist.csv')
+except FileNotFoundError:
+    print('file not found')

@@ -313,6 +313,6 @@ reader = pd.read_csv(datapath + 'train.csv', usecols = usecols,
                      chunksize = 100000, memory_map = True)
 
 for chunk in reader:
-    chunk.to_hdf('./data/train.h5', key = 'df', mode = 'a', append = True, format = 'table')
+    chunk.to_hdf(datapath + 'train.h5', key = 'df', mode = 'a', append = True, format = 'table')
 
 tables.file._open_files.close_all()
