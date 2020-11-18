@@ -134,7 +134,7 @@ def get_l_reward(i):
         
     return reward, part
 
-def update_userscores(i, reward, part, userscores):
+def update_userscores(i, reward, part, userscores_masked):
     '''
     Updates the relevant score for the user
 
@@ -154,11 +154,11 @@ def update_userscores(i, reward, part, userscores):
     Updated userscores.
 
     '''
-    part = np.int(part)
-    userid_ = np.where(userscores[:, 0] == batch[i, 1])[0][0]
-    userscores[userid_, part] += reward
+    col_ = np.int(part)
+    idx_ = np.where(userscores_masked[:, 0] == batch[i, 1])[0][0]
+    userscores_masked[idx_, col_] += reward
     
-    return userscores
+    return userscores_masked
     
 #%% Getting the supplementary data files
 try:
@@ -204,7 +204,7 @@ if __name__ == '__main__':
     iterate = True
     batch_count = 0
     
-    while iterate and batch_count < 100:
+    while iterate and batch_count < 25:
         tic = datetime.datetime.now()
         
         batch_count += 1
@@ -222,7 +222,7 @@ if __name__ == '__main__':
         
         while iterate_batch and minibatch_count < 100:
             minibatch_count += 1
-            # print('Processing minibatch: ', minibatch_count)
+            #print('Processing minibatch: ', minibatch_count)
             
             # Setup a minibatch
             minibatch_idx = np.random.choice(batch_size, minibatch_size, replace = False)
@@ -232,11 +232,17 @@ if __name__ == '__main__':
             minibatch_userids = np.unique(batch[minibatch_idx, 1])
             mask = np.isin(minibatch_userids, userscores[:, 0], assume_unique = True, invert = True)
             newusers = minibatch_userids[mask].reshape(-1, 1)
+            
             # For such userids create records in userscores
             if len(newusers) != 0:
                 newusers = np.concatenate([newusers, np.array(len(newusers) * [curr_mean_scores])], 
                                           axis = 1)
                 userscores = np.concatenate([userscores, newusers], axis = 0)
+            else:
+                print('Found a batch/minibatch with no newusers to add -->', batch_count, minibatch_count)
+            
+            # Create a mask for userscores so that only userids in this minibatch are filtered
+            mask = np.isin(userscores[:, 0], minibatch_userids, assume_unique = True)
             
             # for each record in the minibatch
             for i in minibatch_idx:
@@ -244,7 +250,7 @@ if __name__ == '__main__':
                 reward, part = get_reward(i)
                 
                 # update the relevant part score for the user
-                userscores = update_userscores(i, reward, part, userscores)
+                userscores[mask] = update_userscores(i, reward, part, userscores[mask])
                            
                 # Is the reward earned the maximum absolute reward for this batch?
                 if np.abs(reward) > batch_max_reward:
