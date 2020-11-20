@@ -301,18 +301,48 @@ for chunk in reader:
     users_ = chunk.user_id.unique().tolist()
     users = users + users_
     users = list(set(users))
+len(users)
 # There are 393656 unique users in the training dataset
+
+#%% Data Preprocessing
 
 # Changing the storage format for train dataset from csv to h5 for IO efficiency gain
 
 # Columns to read from train dataset
-usecols = ['row_id', 'user_id', 'content_id', 'content_type_id', 
-           'answered_correctly', 'prior_question_had_explanation']
+usecols = ['user_id', 'content_id', 'content_type_id', 'answered_correctly', 
+           'prior_question_had_explanation']
 
-reader = pd.read_csv(datapath + 'train.csv', usecols = usecols,
-                     chunksize = 100000, memory_map = True)
+reader = pd.read_csv(datapath + 'train.csv', usecols = usecols, chunksize = 100000, memory_map = True)
+
+# prior_question_had_explanation has boolean values. We change them to numeric. Moreover if the value is
+#null we treat it like False
 
 for chunk in reader:
+    chunk.loc[chunk['prior_question_had_explanation'].isna(), 'prior_question_had_explanation'] = False
+    chunk['prior_question_had_explanation'] = chunk['prior_question_had_explanation'].astype('int')  
     chunk.to_hdf(datapath + 'train.h5', key = 'df', mode = 'a', append = True, format = 'table')
 
-tables.file._open_files.close_all()
+#%% Creating datafiles for next steps in processing
+reader = pd.read_csv(datapath + 'train.csv', usecols = ['user_id'], chunksize = 100000, memory_map = True)
+
+userids = []
+for chunk in reader:
+    userids_ = chunk.user_id.unique().tolist()
+    userids = userids + userids_
+    userids = list(set(userids))
+    
+userids = np.array(userids, dtype = float).reshape(-1,1)
+userscores = np.concatenate([userids, np.array(len(userids) * [np.zeros(8)])], 
+                            axis = 1)
+np.savetxt(datapath + 'userscores.csv', userscores, delimiter = ',')
+
+ques = pd.read_csv(datapath + 'questions.csv', usecols = ['question_id', 'part'])
+ques.loc[:, ['attempts', 'correct_attempt_prob', 'prior_q_expln_views']] = 0.
+ques = ques.to_numpy(dtype = float)
+np.savetxt(datapath + 'ques.csv', ques, delimiter = ',')
+
+lecs = pd.read_csv(datapath + 'lectures.csv', usecols = ['lecture_id', 'part'])
+lecs.loc[:, ['views']] = 0.
+lecs = lecs.to_numpy(dtype = int)
+np.savetxt(datapath + 'lecs.csv', lecs, delimiter = ',')
+
