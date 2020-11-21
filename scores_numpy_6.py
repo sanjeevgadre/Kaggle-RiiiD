@@ -14,8 +14,6 @@ import datetime
 
 #%% Helper variables
 datapath = './data/'
-# probability that a row will be included in the bootstrap batch
-p_read = 0.01 
 
 # max change in score that indicates steady state
 epsilon = 10**(-5)
@@ -26,7 +24,7 @@ epsilon_batch = 10**(-2)
 train_n = 101230332
 
 # setting batch and minibatch sizes
-batch_size = int(p_read * train_n) # will read approx 1,000,000 records
+batch_size = 1000000
 minibatch_size = 1000
 
 # iteration counts
@@ -152,6 +150,7 @@ except OSError:
 
 #%% Working with train dataset to arrive at user scores
 if __name__ == '__main__':    
+    mean_score_beg = userscores[:, 1:8].mean(axis = 0).astype(float)
     iterate = True
     batch_count = 0
     
@@ -214,32 +213,39 @@ if __name__ == '__main__':
                 userscores[minibatch_mask] = update_userscores(i, reward, part, userscores[minibatch_mask])
                            
                 # Is the reward earned the maximum/minimum absolute reward for this batch?
-                if np.abs(reward) > batch_max_reward:
-                    batch_max_reward = np.abs(reward)
-                elif np.abs(reward) < batch_min_reward:
-                    batch_min_reward = np.abs(reward)
-                                              
+                # if reward > batch_max_reward:
+                #     batch_max_reward = reward
+                # elif reward < batch_min_reward:
+                #     batch_min_reward = reward
+                    
+            # Save the updated userscores, ques and lecs files after processing 100 minibatches
+            if minibatch_count % 100 == 0:
+                np.savetxt(datapath + 'ques.csv', ques, delimiter = ',')
+                np.savetxt(datapath + 'lecs.csv', lecs, delimiter = ',')
+                np.savetxt(datapath + 'userscores.csv', userscores, delimiter = ',')
               
             # Should I stop iterating this batch?
-            if batch_max_reward < epsilon_batch:
-                print('stopping iteration of batch %i after %i minibatches' 
-                      % (batch_count, minibatch_count))
-                iterate_batch = False
+            # if batch_max_reward < epsilon_batch:
+            #     print('stopping iteration of batch %i after %i minibatches' 
+            #           % (batch_count, minibatch_count))
+            #     iterate_batch = False
                 
         # Should stop iterating
-        if batch_max_reward < epsilon:
-            print('Scores stabilised after %i batches' % batch_count)
-            iterate = False
-            
-        # Save the updated userscores, ques and lecs files after processing 2 batches
-        if batch_count % 2 == 0:
-            np.savetxt(datapath + 'ques.csv', ques, delimiter = ',')
-            np.savetxt(datapath + 'lecs.csv', lecs, delimiter = ',')
-            np.savetxt(datapath + 'userscores.csv', userscores, delimiter = ',')
+        # if batch_max_reward < epsilon:
+        #     print('Scores stabilised after %i batches' % batch_count)
+        #     iterate = False
+        
+        mean_score_end = userscores[:, 1:8].mean(axis = 0).astype(float)
+        mean_score_delta = mean_score_end - mean_score_beg
+        mean_score_delta = mean_score_delta/mean_score_beg
+        mean_score_beg = mean_score_end
         
         toc = datetime.datetime.now()
         print('Empty minibatches -->', empty_minibatch_count)
-        print('Max reward for the batch -->', batch_max_reward)
-        print('Min reward for the batch -->', batch_min_reward)
+        print('Max change in mean scores = %.6f in part %i' % (np.max(np.abs(mean_score_delta)), 
+                                                             np.argmax(np.abs(mean_score_delta) + 1)))
+        # print('Max reward for the batch -->', batch_max_reward)
+        # print('Min reward for the batch -->', batch_min_reward)
+        # print('Change in mean scores -->', mean_score_delta)
         print('Time to process the batch', toc - tic)
         
