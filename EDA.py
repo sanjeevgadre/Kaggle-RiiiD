@@ -95,7 +95,7 @@ Parts have differnt number of bundles with ~57% in part 5
 
 Comparing percentage of bundles and percentage of questions across parts, one can conclude that for parts 3, 4, 6 and 7 we have relatively more bundles with multiple questions where are for the other parts (1, 2 and 5) we have relatively more bundles with one questions.
 
-Distribution of questions across bundles and parts in skewed; so is the distribution of bundels across parts.
+Distribution of questions across bundles and parts in skewed; so is the distribution of bundles across parts.
 '''
 
 # Data preprocessing

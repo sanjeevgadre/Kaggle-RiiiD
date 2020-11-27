@@ -1,3 +1,4 @@
+# %% [code]
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -10,10 +11,9 @@ Created on Tue Nov 10 10:34:03 2020
 import pandas as pd
 import numpy as np
 import sys
-import datetime
 
 #%% Helper variables
-datapath = './data/'
+inputpath = '../input/riiid-scoring/'
 
 # max change in score that indicates steady state
 epsilon = 10**(-5)
@@ -28,7 +28,7 @@ batch_size = 1000000
 minibatch_size = 1000
 
 # iteration counts
-batch_iters = 1
+batch_iters = 15
 minibatch_iters = 1000
 
 #%% Helper functions
@@ -50,17 +50,18 @@ def get_q_reward(i):
     # Get the part number and current stats of the question
     idx =  np.where(ques[:, 0] == qid)
     _, part, attempts, prob, prior_views = ques[idx].flatten()
-         
-    # Calculate the reward      
-    reward = np.float(batch[i, 3]) - prob
-    # Update the question's statistics
     correct_attempts = attempts * prob
-    if np.float(batch[i, 3]) == 1.:
+         
+    # If answered correctly, calculate the reward      
+    if batch[i, 3] == 1:
         correct_attempts += 1
-        
+        reward = (1. - prob) / correct_attempts
+    else:
+        reward = 0.
+    
+    # Update the question statistics
     attempts += 1
     prob = correct_attempts / attempts
-    
     ques[idx, 2] = attempts
     ques[idx, 3] = prob
     
@@ -129,9 +130,9 @@ def update_userscores(i, reward, part, userscores_masked):
     
 #%% Getting the supplementary data files
 try:
-    userscores = np.genfromtxt(datapath + 'userscores.csv', delimiter = ',')
-    ques = np.genfromtxt(datapath + 'ques.csv', delimiter = ',')
-    lecs = np.genfromtxt(datapath + 'lecs.csv', delimiter = ',')
+    userscores = np.genfromtxt(inputpath + 'userscores.csv', delimiter = ',')
+    ques = np.genfromtxt(inputpath + 'ques.csv', delimiter = ',')
+    lecs = np.genfromtxt(inputpath + 'lecs.csv', delimiter = ',')
 except OSError:
     print('Supplementary data files not found... exiting')
     sys.exit()
@@ -155,13 +156,11 @@ if __name__ == '__main__':
     batch_count = 0
     
     while iterate and batch_count < batch_iters:
-        tic = datetime.datetime.now()
-        
         batch_count += 1
         print('Processing batch: ', batch_count)
         batch_idx = np.random.choice(int(train_n), batch_size, replace = False)
         batch_idx = np.sort(batch_idx)
-        batch = pd.read_hdf(datapath + 'train.h5', 'df', mode = 'r', where = pd.Index(batch_idx))
+        batch = pd.read_hdf(inputpath + 'train.h5', 'df', mode = 'r', where = pd.Index(batch_idx))
         batch = batch.sample(frac = 1)
         batch.reset_index(inplace = True, drop = True)
         batch = batch.to_numpy(dtype = float)
@@ -170,7 +169,7 @@ if __name__ == '__main__':
         mask = np.isin(batch[:, 0], userscores[:, 0], invert = True)
         if sum(mask) != 0:
             offending_ids = batch[mask]
-            np.savetxt(datapath + 'offending_ids', offending_ids, delimiter = ',')
+            np.savetxt('offending_ids', offending_ids, delimiter = ',')
             print('Batch has a userid that is not in Userscores. Exiting')
             sys.exit()
         
@@ -212,41 +211,17 @@ if __name__ == '__main__':
                        
                 # update the relevant part score for the user
                 userscores[minibatch_mask] = update_userscores(i, reward, part, userscores[minibatch_mask])
-                           
-                # Is the reward earned the maximum/minimum absolute reward for this batch?
-                # if reward > batch_max_reward:
-                #     batch_max_reward = reward
-                # elif reward < batch_min_reward:
-                #     batch_min_reward = reward
-                    
-            # Save the updated userscores, ques and lecs files after processing 100 minibatches
-            if minibatch_count % 100 == 0:
-                np.savetxt(datapath + 'ques.csv', ques, delimiter = ',')
-                np.savetxt(datapath + 'lecs.csv', lecs, delimiter = ',')
-                np.savetxt(datapath + 'userscores.csv', userscores, delimiter = ',')
-              
-            # Should I stop iterating this batch?
-            # if batch_max_reward < epsilon_batch:
-            #     print('stopping iteration of batch %i after %i minibatches' 
-            #           % (batch_count, minibatch_count))
-            #     iterate_batch = False
-                
-        # Should stop iterating
-        # if batch_max_reward < epsilon:
-        #     print('Scores stabilised after %i batches' % batch_count)
-        #     iterate = False
         
-        mean_score_end = userscores[:, 1:8].mean(axis = 0).astype(float)
-        mean_score_delta = mean_score_end - mean_score_beg
-        mean_score_delta = mean_score_delta/mean_score_beg
-        mean_score_beg = mean_score_end
-        
-        toc = datetime.datetime.now()
         print('Empty minibatches -->', empty_minibatch_count)
-        print('Max change in mean scores = %.6f in part %i' % (np.max(np.abs(mean_score_delta)), 
-                                                             np.argmax(np.abs(mean_score_delta)) + 1))
-        # print('Max reward for the batch -->', batch_max_reward)
-        # print('Min reward for the batch -->', batch_min_reward)
-        # print('Change in mean scores -->', mean_score_delta)
-        print('Time to process the batch', toc - tic)
+    
+    mean_score_end = userscores[:, 1:8].mean(axis = 0).astype(float)
+    print('Part mean scores after this run -->', mean_score_end)
+    mean_score_delta = mean_score_end - mean_score_beg
+    mean_score_delta = mean_score_delta/mean_score_beg
+    print('Change in part mean scores -->', mean_score_delta)
+    
+    np.savetxt('ques.csv', ques, delimiter = ',')
+    np.savetxt('lecs.csv', lecs, delimiter = ',')
+    np.savetxt('userscores.csv', userscores, delimiter = ',')
+        
         
