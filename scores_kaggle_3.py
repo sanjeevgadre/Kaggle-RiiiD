@@ -15,7 +15,6 @@ import datetime
 
 #%% Helper variables
 inputpath = '../input/riiid-scoring/'
-inputpath = './data/'
 
 # max change in score that indicates steady state
 epsilon = 10**(-5)
@@ -30,8 +29,11 @@ batch_size = 1000000
 minibatch_size = 1000
 
 # iteration counts
-batch_iters = 1
+batch_iters = 15
 minibatch_iters = 1000
+
+# timeout for Kaggle processing
+time_out = 8.75 * 3600
 
 #%% Helper functions
 def get_q_reward(i):
@@ -129,6 +131,32 @@ def update_userscores(i, reward, part, userscores_masked):
     userscores_masked[idx_, col_] += reward
     
     return userscores_masked
+
+def save_data(mean_score_beg):
+    '''
+    Saves the processed data and prints out processing related stats
+
+    Parameters
+    ----------
+    mean_score_beg : np.array
+        Array of part-wise mean userscores.
+
+    Returns
+    -------
+    None.
+
+    '''
+    np.savetxt('ques.csv', ques, delimiter = ',')
+    np.savetxt('lecs.csv', lecs, delimiter = ',')
+    np.savetxt('userscores.csv', userscores, delimiter = ',')
+    
+    mean_score_end = userscores[:, 1:8].mean(axis = 0).astype(float)
+    print('Part mean scores after this run -->', mean_score_end)
+    mean_score_delta = mean_score_end - mean_score_beg
+    mean_score_delta = mean_score_delta/mean_score_beg
+    print('Change in part mean scores -->', mean_score_delta)
+    
+    return
     
 #%% Getting the supplementary data files
 try:
@@ -156,9 +184,9 @@ if __name__ == '__main__':
     mean_score_beg = userscores[:, 1:8].mean(axis = 0).astype(float)
     iterate = True
     batch_count = 0
+    tic = datetime.datetime.now()
     
     while iterate and batch_count < batch_iters:
-        tic = datetime.datetime.now()
         batch_count += 1
         print('Processing batch: ', batch_count)
         batch_idx = np.random.choice(int(train_n), batch_size, replace = False)
@@ -185,8 +213,6 @@ if __name__ == '__main__':
         while iterate_batch and minibatch_count < minibatch_iters:
             minibatch_count += 1
             
-            print('Processing minibatch: ', minibatch_count)
-
             # Setup a minibatch
             minibatch_idx = np.random.choice(batch_size, minibatch_size, replace = False)
             # Identify unique userids that in the minibatch
@@ -216,19 +242,20 @@ if __name__ == '__main__':
                        
                 # update the relevant part score for the user
                 userscores[minibatch_mask] = update_userscores(i, reward, part, userscores[minibatch_mask])
+                
+            # Am I running out of time on Kaggle?
+            if minibatch_count % 250 == 0:
+                toc = datetime.datetime.now()
+                if (toc-tic).total_seconds() >= time_out:
+                    print('Pre-emptive exit to avoid timeout')
+                    print('Batch: ', batch_count, 'Minibatch: ', minibatch_count)
+                    save_data(mean_score_beg)
+                    sys.exit()
         
-        print('Empty minibatches -->', empty_minibatch_count)
         toc = datetime.datetime.now()
+        print('Empty minibatches -->', empty_minibatch_count)
         print('Time to process this batch -->', (toc - tic).total_seconds())
     
-    mean_score_end = userscores[:, 1:8].mean(axis = 0).astype(float)
-    print('Part mean scores after this run -->', mean_score_end)
-    mean_score_delta = mean_score_end - mean_score_beg
-    mean_score_delta = mean_score_delta/mean_score_beg
-    print('Change in part mean scores -->', mean_score_delta)
-    
-    np.savetxt('ques.csv', ques, delimiter = ',')
-    np.savetxt('lecs.csv', lecs, delimiter = ',')
-    np.savetxt('userscores.csv', userscores, delimiter = ',')
+    save_data(mean_score_beg)
         
         
