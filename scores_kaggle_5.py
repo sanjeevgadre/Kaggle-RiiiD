@@ -6,7 +6,7 @@ Created on Tue Nov 10 10:34:03 2020
 
 @author: sanjeev
 
-mean_run
+mean_run v3
 """
 
 #%% Libraries
@@ -40,7 +40,11 @@ time_out = 8.75 * 3600
 #%% Helper functions
 def get_q_reward(i):
     '''
-    For the question, rewards the user if answered correctly. Also updates the probability of correctly answering the question. Additionally rewards the user if prior question's explanation was viewed and also updates the total views of the prior question.'
+    For the question: 
+        rewards the user if answered correctly
+        updates the probability of correctly answering the question
+        rewards the user if prior question's explanation was viewed, and 
+        updates the total views of the prior question.
 
     Parameters
     ----------
@@ -62,9 +66,12 @@ def get_q_reward(i):
     if batch[i, 3] == 1:
         correct_attempts += 1
         reward = (1. - prob) / correct_attempts
+        
     else:
-        reward = 0.
-    
+        incorrect_attempts = attempts - correct_attempts
+        incorrect_attempts += 1
+        reward = (0. - prob) / incorrect_attempts
+        
     # Update the question statistics
     attempts += 1
     prob = correct_attempts / attempts

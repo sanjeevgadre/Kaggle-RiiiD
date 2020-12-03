@@ -6,7 +6,7 @@ Created on Tue Nov 10 10:34:03 2020
 
 @author: sanjeev
 
-mean_run
+median_run
 """
 
 #%% Libraries
@@ -134,14 +134,14 @@ def update_userscores(i, reward, part, userscores_masked):
     
     return userscores_masked
 
-def save_data(mean_score_beg):
+def save_data(med_score_beg):
     '''
     Saves the processed data and prints out processing related stats
 
     Parameters
     ----------
-    mean_score_beg : np.array
-        Array of part-wise mean userscores.
+    med_score_beg : np.array
+        Array of part-wise median userscores.
 
     Returns
     -------
@@ -152,11 +152,11 @@ def save_data(mean_score_beg):
     np.savetxt('lecs.csv', lecs, delimiter = ',')
     np.savetxt('userscores.csv', userscores, delimiter = ',')
     
-    mean_score_end = userscores[:, 1:8].mean(axis = 0).astype(float)
-    print('Part mean scores after this run -->', mean_score_end)
-    mean_score_delta = mean_score_end - mean_score_beg
-    mean_score_delta = mean_score_delta/mean_score_beg
-    print('Change in part mean scores -->', mean_score_delta)
+    med_score_end = np.median(userscores[:, 1:8], axis = 0).astype(float)
+    print('Part median scores after this run -->', med_score_end)
+    med_score_delta = med_score_end - med_score_beg
+    med_score_delta = med_score_delta/med_score_beg
+    print('Change in part median scores -->', med_score_delta)
     
     return
     
@@ -183,7 +183,7 @@ except OSError:
 
 #%% Working with train dataset to arrive at user scores
 if __name__ == '__main__':    
-    mean_score_beg = userscores[:, 1:8].mean(axis = 0).astype(float)
+    med_score_beg = np.median(userscores[:, 1:8], axis = 0).astype(float)
     iterate = True
     batch_count = 0
     tic = datetime.datetime.now()
@@ -224,10 +224,10 @@ if __name__ == '__main__':
             
             # Filter the index for userids that are being processed for the first time
             first_process_idx = [i for i in first_process_idx if userscores[i, 8] == 0]
-            # For these minibatch userids, set the part scores to the current mean scores
+            # For these minibatch userids, set the part scores to the current median scores
             if len(first_process_idx) != 0:
-                curr_mean_scores = userscores[:, 1:8].mean(axis = 0).astype(float)
-                userscores[first_process_idx, 1:8] = curr_mean_scores
+                curr_med_scores = np.median(userscores[:, 1:8], axis = 0).astype(float)
+                userscores[first_process_idx, 1:8] = curr_med_scores
                 userscores[first_process_idx, 8] = 1
             else:
                 empty_minibatch_count += 1
@@ -249,12 +249,12 @@ if __name__ == '__main__':
                 if (toc-tic).total_seconds() >= time_out:
                     print('Pre-emptive exit to avoid timeout')
                     print('Batch: ', batch_count, 'Minibatch: ', minibatch_count)
-                    save_data(mean_score_beg)
+                    save_data(med_score_beg)
                     sys.exit()
         
         toc = datetime.datetime.now()
         print('Empty minibatches -->', empty_minibatch_count)
     
-    save_data(mean_score_beg)
+    save_data(med_score_beg)
         
         
