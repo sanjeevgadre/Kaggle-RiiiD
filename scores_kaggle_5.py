@@ -17,6 +17,7 @@ import datetime
 
 #%% Helper variables
 inputpath = '../input/riiid-scoring/'
+inputpath = './data/'
 
 # max change in score that indicates steady state
 epsilon = 10**(-5)
@@ -31,8 +32,8 @@ batch_size = 1000000
 minibatch_size = 1000
 
 # iteration counts
-batch_iters = 16
-minibatch_iters = 1000
+batch_iters = 1
+minibatch_iters = 10
 
 # timeout for Kaggle processing
 time_out = 8.75 * 3600
@@ -141,14 +142,13 @@ def update_userscores(i, reward, part, userscores_masked):
     
     return userscores_masked
 
-def save_data(mean_score_beg):
+def save_data():
     '''
-    Saves the processed data and prints out processing related stats
+    Saves the processed batch data.
 
     Parameters
     ----------
-    mean_score_beg : np.array
-        Array of part-wise mean userscores.
+    None.
 
     Returns
     -------
@@ -159,14 +159,35 @@ def save_data(mean_score_beg):
     np.savetxt('lecs.csv', lecs, delimiter = ',')
     np.savetxt('userscores.csv', userscores, delimiter = ',')
     
+    return
+
+def batch_stats(empty_minibatch_count, mean_score_beg):
+    '''
+    Prints the stats for the processed batch data
+
+    Parameters
+    ----------
+    empty_minibatch_count : int
+        Number of minibatches with no new user recorded.
+    mean_score_beg : np.array
+        Mean part scores at the beginning of batch processing.
+
+    Returns
+    -------
+    mean_score_beg : np.array
+        Mean part scores at the end of batch processing
+
+    '''
+    print('Empty minibatches -->', empty_minibatch_count)
     mean_score_end = userscores[:, 1:8].mean(axis = 0).astype(float)
     print('Part mean scores after this run -->', mean_score_end)
     mean_score_delta = mean_score_end - mean_score_beg
     mean_score_delta = mean_score_delta/mean_score_beg
     print('Change in part mean scores -->', mean_score_delta)
+    mean_score_beg = mean_score_end
     
-    return
-    
+    return mean_score_beg
+
 #%% Getting the supplementary data files
 try:
     userscores = np.genfromtxt(inputpath + 'userscores.csv', delimiter = ',')
@@ -256,12 +277,15 @@ if __name__ == '__main__':
                 if (toc-tic).total_seconds() >= time_out:
                     print('Pre-emptive exit to avoid timeout')
                     print('Batch: ', batch_count, 'Minibatch: ', minibatch_count)
-                    save_data(mean_score_beg)
+                    mean_score_beg = batch_stats(empty_minibatch_count, mean_score_beg)
+                    save_data()
                     sys.exit()
+            
+        # Print batch stats
+        mean_score_beg = batch_stats(empty_minibatch_count, mean_score_beg)
         
         toc = datetime.datetime.now()
-        print('Empty minibatches -->', empty_minibatch_count)
-    
-    save_data(mean_score_beg)
+        
+    save_data()
         
         
