@@ -17,7 +17,7 @@ import datetime
 
 #%% Helper variables
 inputpath = '../input/riiid-scoring/'
-inputpath = './data/'
+
 
 # max change in score that indicates steady state
 epsilon = 10**(-5)
@@ -32,8 +32,8 @@ batch_size = 1000000
 minibatch_size = 1000
 
 # iteration counts
-batch_iters = 1
-minibatch_iters = 10
+batch_iters = 16
+minibatch_iters = 1000
 
 # timeout for Kaggle processing
 time_out = 8.75 * 3600

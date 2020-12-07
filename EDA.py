@@ -294,16 +294,32 @@ prior_question_had_explanation: (bool) Whether or not the user saw an explanatio
 sum(1 for row in open(datapath + 'train.csv', 'r'))
 # There are 101230333 - 1 = 101,230,332 records in the training dataset
 
-reader = pd.read_csv(datapath + 'train.csv', usecols = ['user_id'], 
-                     chunksize = 100000, memory_map = True)
+reader = pd.read_csv(datapath + 'train.csv', usecols = ['user_id', 'content_id', 'content_type_id'], 
+                     chunksize = 1000000, memory_map = True)
 users = []
+qs = []
+ls = []
 for chunk in reader:
     users_ = chunk.user_id.unique().tolist()
     users = users + users_
     users = list(set(users))
-len(users)
-# There are 393656 unique users in the training dataset
+    
+    ques_ = chunk.loc[chunk['content_type_id'] == 0, 'content_id'].unique().tolist()
+    qs = qs + ques_
+    qs = list(set(qs))
+    
+    lecs_ = chunk.loc[chunk['content_type_id'] == 1, 'content_id'].unique().tolist()
+    ls = ls + lecs_
+    ls = list(set(ls))
+    
+print('In the training set there are %i unique users that are asked %i unique questions and offered %i unique lectures to view' % (len(users), len(qs), len(ls)))
 
+# There are 393656 unique users in the training dataset. They are asked 13523 unique questions and offered 415 unique lectures to view. Ergo, all the questions in the question dataset are asked atleast once in the training set and all but 3 lectures are offered to view atleast once in the training dataset.
+
+mask = np.isin(np.array(lecs['lecture_id']), np.array(ls), assume_unique = True, invert = True)
+print('The lectures not offered even once during the training dataset: \n', lecs.loc[mask, 'lecture_id'])
+
+# lecs 641, 4385 and 28098 not offered even once
 #%% Data Preprocessing
 
 # Changing the storage format for train dataset from csv to h5 for IO efficiency gain

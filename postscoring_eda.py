@@ -11,76 +11,39 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 #%% Helper variables
-
+datapath = './data/'
 
 #%% Userscores from mean run
-datapath = './kaggle/mean_run/'
+
 userscores = np.genfromtxt(datapath + 'userscores.csv', delimiter = ',')
 
 len(userscores[userscores[:, 8] == 0])
-# 101 users remain unscored (unprocessed) after 1st epoch i.e 0.03%
-np.mean(userscores[:, 1:8], axis = 0)
+# 88 users remain unscored (unprocessed) after 113M transactions i.e 0.02%
+mean = np.mean(userscores[:, 1:8], axis = 0)
 # Mean userscores (before reward poilcy change) - [0.03934268, 0.08991406, 0.07074137, 0.05179744, 0.26879469, 0.0540276 , 0.05278917]
     #  this alerted change in reward policy -- > [0.06663248, 0.01301413, 0.01666397, 0.05018397, 0.03309288, 0.05533283, 0.01487584]
 # Mean userscores (after reward policy change) - [0.04868054, 0.09712866, 0.07744997, 0.07086877, 0.3167342 , 0.07259032, 0.05839419]
     # After reward policy change the mean rewards have gone up and this probably because the negative element in the reward policy was removed
 
+# Mean userscores (after 3rd reward policy) - [0.02951912, 0.05758864, 0.04761834, 0.04515786, 0.2037545,  0.04537496, 0.03697]
+    
+
 np.median(userscores[:, 1:8], axis = 0)
 # [0.02546064, 0.0573015 , 0.03846656, 0.03403131, 0.19177877, 0.03781714, 0.02767306]
 
-np.std(userscores[:, 1:8], axis = 0)
+sigma = np.std(userscores[:, 1:8], axis = 0)
 # Std dev. (before reward policy change)- [6.86006676, 17.29906613, 12.64863422, 10.86968324, 37.78130921, 15.97296181, 10.45584508])
 # Std dev. (after reward policy change)- [0.25754518, 0.2705686 , 0.32062192, 0.32267703, 0.77888801, 0.26850036, 0.28461705]
+    # The dispersion in userscores has come down dramatically after the reward policy change; ergo the change was appropriate
+    
+# Std dev. (after 3rd reward policy )- [0.20179399, 0.21116786, 0.25834561, 0.25590359, 0.58923841, 0.21340565, 0.22842549]
     # The dispersion in userscores has come down dramatically after the reward policy change; ergo the change was appropriate
 
 np.std(userscores[:, 1:8], axis = 0) / np.mean(userscores[:, 1:8], axis = 0)
 # Coeff. of var. (before reward policy change) - [174.32 , 192.35, 178.75, 209.78956707, 140.51789314, 295.55963283, 198.01114767]
 # Coeff. of var. (after reward policy change) - [5.29, 2.79, 4.13972965, 4.5531628 , 2.4591219, 3.69884544, 4.87406438]
 
-userscores = userscores[userscores[:, 8] != 0]
-
-fig, axs = plt.subplots(nrows = 4, ncols = 2, figsize = (10, 15))
-col_ = 1
-for r in range(4):
-    for c in range(2):
-        if col_ < 8:
-            axs[r, c].hist(userscores[:, col_], bins = 100, log = True)
-            col_ += 1
-
-plt.savefig('./foo.jpg')
-plt.show()
-
-fig, axs = plt.subplots(nrows = 4, ncols = 2, figsize = (10, 15))
-col_ = 1
-for r in range(4):
-    for c in range(2):
-        if col_ < 8:
-            axs[r, c].hist(userscores[:, col_], bins = 100, log = True, cumulative = True, density = True)
-            col_ += 1
-
-plt.savefig('./foo.jpg')
-plt.show()
-
-#%% Userscores from median run
-datapath = './kaggle/median_run/'
-userscores = np.genfromtxt(datapath + 'userscores.csv', delimiter = ',')
-
-len(userscores[userscores[:, 8] == 0])
-# 105 users remain unscored (unprocessed) after 1st epoch i.e 0.03%
-np.mean(userscores[:, 1:8], axis = 0)
-# Mean userscores [0.027644  , 0.05299577, 0.04430043, 0.04097484, 0.17795478, 0.04012942, 0.03366916]
-    # Using current_median_scores to boot new users reduces the mean scores for the users by ~40%
-
-np.median(userscores[:, 1:8], axis = 0)
-# [1.93309102e-06, 1.16364404e-03, 0.00000000e+00, 0.00000000e+00, 8.65756454e-03, 0.00000000e+00, 0.00000000e+00]
-    
-np.std(userscores[:, 1:8], axis = 0)
-# Std dev. - [0.26223202, 0.2730808 , 0.31885302, 0.32461032, 0.79725281, 0.26997346, 0.28284393] 
-    # The std. dev. in userscores is approximately the same across median and mean runs
-
-np.std(userscores[:, 1:8], axis = 0) / np.mean(userscores[:, 1:8], axis = 0)
-# Coeff. of var. - [9.48603631, 5.15287958, 7.1975147 , 7.92218589, 4.48008659, 6.72757004, 8.40068369]
-    # Coeff of var is almost twice for median run as compared to mean_run
+# Coeff. of var. (after 3rd reward policy) - 6.83604271, 3.6668316 , 5.42533904, 5.66686651, 2.89190371, 4.70315931, 6.17867076]
 
 userscores = userscores[userscores[:, 8] != 0]
 
@@ -89,11 +52,26 @@ col_ = 1
 for r in range(4):
     for c in range(2):
         if col_ < 8:
-            axs[r, c].hist(userscores[:, col_], bins = 100, log = True)
+            axs[r, c].hist(userscores[:, col_], bins = 100, log = True,
+                           range = (mean[col_ - 1] - 2*sigma[col_ - 1], mean[col_ - 1] + 2*sigma[col_ - 1]))
             col_ += 1
 
 plt.savefig('./foo.jpg')
 plt.show()
+
+fig, axs = plt.subplots(nrows = 4, ncols = 2, figsize = (10, 15))
+col_ = 1
+for r in range(4):
+    for c in range(2):
+        if col_ < 8:
+            axs[r, c].hist(userscores[:, col_], bins = 100, log = True, cumulative = True, density = True, 
+                           range = (mean[col_ - 1] - 2*sigma[col_ - 1], mean[col_ - 1] + 2*sigma[col_ - 1]))
+            col_ += 1
+
+plt.savefig('./foo.jpg')
+plt.show()
+
+two_sigma_range_ = np.concatenate(((mean - 2*sigma).reshape(-1, 1), (mean + 2*sigma).reshape(-1, 1)), axis = 1)
 
 #%% Questions
 ques = np.genfromtxt(datapath + 'ques.csv', delimiter = ',')
