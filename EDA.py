@@ -314,7 +314,9 @@ for chunk in reader:
     
 print('In the training set there are %i unique users that are asked %i unique questions and offered %i unique lectures to view' % (len(users), len(qs), len(ls)))
 
-# There are 393656 unique users in the training dataset. They are asked 13523 unique questions and offered 415 unique lectures to view. Ergo, all the questions in the question dataset are asked atleast once in the training set and all but 3 lectures are offered to view atleast once in the training dataset.
+# There are 393656 unique users in the training dataset. 
+# They are asked 13523 unique questions and offered 415 unique lectures to view. 
+# Ergo, all the questions in the question dataset are asked atleast once in the training set and all but 3 lectures are offered to view atleast once in the training dataset.
 
 mask = np.isin(np.array(lecs['lecture_id']), np.array(ls), assume_unique = True, invert = True)
 print('The lectures not offered even once during the training dataset: \n', lecs.loc[mask, 'lecture_id'])
@@ -339,17 +341,16 @@ for chunk in reader:
     chunk.to_hdf(datapath + 'train.h5', key = 'df', mode = 'a', append = True, format = 'table')
 
 #%% Creating datafiles for next steps in processing
-reader = pd.read_csv(datapath + 'train.csv', usecols = ['user_id'], chunksize = 100000, memory_map = True)
+# reader = pd.read_csv(datapath + 'train.csv', usecols = ['user_id'], chunksize = 100000, memory_map = True)
 
-userids = []
-for chunk in reader:
-    userids_ = chunk.user_id.unique().tolist()
-    userids = userids + userids_
-    userids = list(set(userids))
+# userids = []
+# for chunk in reader:
+#     userids_ = chunk.user_id.unique().tolist()
+#     userids = userids + userids_
+#     userids = list(set(userids))
     
-userids = np.array(userids, dtype = float).reshape(-1,1)
-userscores = np.concatenate([userids, np.array(len(userids) * [np.zeros(8)])], 
-                            axis = 1)
+users = np.array(users, dtype = float).reshape(-1,1)
+userscores = np.concatenate((users, np.zeros(len(users), 8)), axis = 1)
 np.savetxt(datapath + 'userscores.csv', userscores, delimiter = ',')
 
 ques = pd.read_csv(datapath + 'questions.csv', usecols = ['question_id', 'part'])
