@@ -15,14 +15,21 @@ import datetime
 #%% Helper variables
 train_csv_path = '../input/riiid-test-answer-prediction/'
 other_csv_path = '../input/riiid-scoring/'
+
+train_csv_path = './data/'
+other_csv_path = './data/'
+
 # timeout for Kaggle processing
-time_out = 8.75 * 3600
+time_out = 8.2 * 3600
+
 # records to read in a single batch
 chunksize_ = 10**6         
+
 # total records to read in a single run
-nrows_ = 12 * chunksize_
+nrows_ = 1 * chunksize_
+
 # no. of rows to skip from top  
-skiprows_ = 1 + 1 * nrows_
+skiprows_ = 1 + 11 * nrows_
 
 #%% Processing train.csv
 userscores = np.genfromtxt(other_csv_path + 'userscores.csv', delimiter = ',')
@@ -41,6 +48,14 @@ tic = datetime.datetime.now()
 for chunk in reader:
     print('In the loop')
     chunk_count += 1
+    
+    # Am I running out of time on Kaggle?
+    toc = datetime.datetime.now()
+    if (toc-tic).total_seconds() >= time_out:
+        print('Pre-emptive exit to avoid timeout')
+        print('Skiprows: ', skiprows_, 'Chunk count: ', chunk_count)
+        sys.exit()
+    
     # eliminating nans
     chunk.loc[chunk['prior_question_had_explanation'].isna(), 'prior_question_had_explanation'] = False
     chunk['prior_question_had_explanation'] = chunk['prior_question_had_explanation'].astype('int')
@@ -64,11 +79,5 @@ for chunk in reader:
     chunk = pd.DataFrame(data = chunk, columns = colnames_)
     chunk.to_hdf('train_scored.h5', key = 'df', mode = 'a', append = True, format = 'table')
     
-    toc = datetime.datetime.now()
     
-    # Am I running out of time on Kaggle?
-    if (toc-tic).total_seconds() >= time_out:
-        print('Pre-emptive exit to avoid timeout')
-        print('Skiprows: ', skiprows_, 'Chunk: ', chunk)
-        sys.exit()
         
