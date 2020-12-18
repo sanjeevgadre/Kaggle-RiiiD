@@ -16,9 +16,6 @@ import datetime
 train_csv_path = '../input/riiid-test-answer-prediction/'
 other_csv_path = '../input/riiid-scoring/'
 
-train_csv_path = './data/'
-other_csv_path = './data/'
-
 # timeout for Kaggle processing
 time_out = 8.2 * 3600
 
@@ -26,10 +23,10 @@ time_out = 8.2 * 3600
 chunksize_ = 10**6         
 
 # total records to read in a single run
-nrows_ = 1 * chunksize_
+nrows_ = 12 * chunksize_
 
 # no. of rows to skip from top  
-skiprows_ = 1 + 11 * nrows_
+skiprows_ = 1 + 1 * nrows_
 
 #%% Processing train.csv
 userscores = np.genfromtxt(other_csv_path + 'userscores.csv', delimiter = ',')

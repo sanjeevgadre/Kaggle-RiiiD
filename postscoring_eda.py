@@ -10,6 +10,8 @@ Created on Fri Nov 27 08:40:43 2020
 import numpy as np
 import matplotlib.pyplot as plt
 
+from sklearn.decomposition import PCA
+
 #%% Helper variables
 datapath = './data/'
 
@@ -62,6 +64,22 @@ for i in range(7):
 # Part 7 --> 0.9874 of total records lie within 2 sigma range
 # We can safely clip the part userscores to within their respective 2 sigma range
 
+corr_coef_ = np.corrcoef(userscores[userscores[:, 8] == 1, 1:8], rowvar = False)
+
+# [1.        , 0.16220016, 0.22865256, 0.25533779, 0.16945078, 0.16839158, 0.14140076],
+# [0.16220016, 1.        , 0.26734779, 0.24921227, 0.34266616, 0.18226742, 0.1666369 ],
+# [0.22865256, 0.26734779, 1.        , 0.52356998, 0.27068343, 0.29656262, 0.32322765],
+# [0.25533779, 0.24921227, 0.52356998, 1.        , 0.26399204, 0.32011388, 0.36182182],
+# [0.16945078, 0.34266616, 0.27068343, 0.26399204, 1.        , 0.34576019, 0.28384395],
+# [0.16839158, 0.18226742, 0.29656262, 0.32011388, 0.34576019, 1.        , 0.39792441],
+# [0.14140076, 0.1666369 , 0.32322765, 0.36182182, 0.28384395, 0.39792441, 1.        ]
+# There is no meaningful pairwise correlation amongst the part scores
+
+pca_ = PCA().fit(userscores[userscores[:, 8] == 1, 1:8])
+pca_.explained_variance_ratio_
+# [0.57991909, 0.15799407, 0.06727159, 0.05358795, 0.05127978, 0.04694441, 0.04300311]
+# The combined variance explained by the two principal components point to likely interaction between
+# the scores when building a parametric linear model.
 
 #%% Questions
 ques = np.genfromtxt(datapath + 'ques.csv', delimiter = ',')

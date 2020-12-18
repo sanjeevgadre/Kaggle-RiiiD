@@ -19,8 +19,10 @@ from sklearn.metrics import roc_auc_score
 #%% Helper variables
 inputpath = './data/'
 chunksize_ = 10**6
-epochs_to_run = 3
+epochs_to_run = 2
 
+# OneHotEncoder to encode the questions part number
+part_enc = OneHotEncoder(categories = [np.arange(1, 8, 1)], dtype = 'int', sparse = False)
 
 #%% Helper functions
 def model_preproc(df):
@@ -43,9 +45,6 @@ def model_preproc(df):
     return df
 
 #%% Fitting a logistic regression model
-# OneHotEncoder to transform the part number to which the question belongs
-part_enc = OneHotEncoder(categories = [np.arange(1, 8, 1)], dtype = 'int', sparse = False)
-
 # Setting up the validation set
 val = pd.read_hdf(inputpath + 'train_proc_val.h5', key = 'df', mode = 'r')
 val = model_preproc(val)
@@ -55,10 +54,8 @@ class_wts_ = compute_class_weight('balanced', classes = np.array([0, 1]), y = va
 # Setting up the classifier
 clf = SGDClassifier(loss = 'log', warm_start = True, class_weight = {0:class_wts_[0], 1:class_wts_[1]})
 
-
-
 tic = dt.datetime.now()
-epoch = 0
+epoch = 1
 while epoch < epochs_to_run:
     reader = pd.read_hdf(inputpath + 'train_proc_train.h5', key = 'df', mode = 'r', 
                          iterator = True, chunksize = chunksize_)
@@ -75,7 +72,7 @@ while epoch < epochs_to_run:
     probs = model.predict_proba(val[:, 1:])
     # Calculate the ROC-AUC
     val_auc = roc_auc_score(val[:, 0], probs[:, 1])
-    print('Validation set area under the ROC curve after %i epochs: %f' % (epoch + 1, val_auc))
+    print('Validation set area under the ROC curve after %i epochs: %f' % (epoch, val_auc))
     epoch += 1
 
 toc = dt.datetime.now()

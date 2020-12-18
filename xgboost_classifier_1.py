@@ -10,19 +10,16 @@ Created on Mon Dec 14 08:08:43 2020
 import numpy as np
 import pandas as pd
 import datetime as dt
-from sklearn.utils.class_weight import compute_class_weight
 from sklearn.preprocessing import OneHotEncoder
-from sklearn.metrics import roc_auc_score
 
 import xgboost as xgb
 
 
 #%% Helper variables
 inputpath = './data/'
-chunksize_ = 10**6
-epochs_to_run = 1
+chunksize_ = 4 * 10**6
 
-# OneHotEncoder to transform the question's part number in data
+# OneHotEncoder to encode the questions part number
 part_enc = OneHotEncoder(categories = [np.arange(1, 8, 1)], dtype = 'int', sparse = False)
 
 #%% Helper functions
@@ -55,55 +52,39 @@ labels = np.copy(val[:, 0])
 val = val[:, 1:]
 val = xgb.DMatrix(val, labels)
 
-# Calculate class weights for use in classifier
-# class_wts_ = compute_class_weight('balanced', classes = np.array([0, 1]), y = val[:, 0])
-
 # Setting up the classifier
 model = None
 params = {'objective': 'binary:logistic', 'eval_metric' : 'auc', 
           'max_depth': 4, 'eta': 0.01, 'subsample': 0.5,
           'min_child_weight': 0.5}
-evals_result_ = {}
 num_boost_round_ = 1000
 
 tic = dt.datetime.now()
-epoch = 0
-while epoch < epochs_to_run:
-    reader = pd.read_hdf(inputpath + 'train_proc_train.h5', key = 'df', mode = 'r', 
-                         iterator = True, chunksize = chunksize_, stop = 4*chunksize_)
-    
-    for chunk in reader:
-        # Shuffle the chunk
-        chunk = chunk.sample(frac = 1)
-        # Pre-process the chunk
-        chunk = model_preproc(chunk)
-        labels = np.copy(chunk[:, 0])
-        chunk = chunk[:, 1:]
-        chunk = xgb.DMatrix(chunk, labels)
-        # Fit the model
-        model = xgb.train(params, chunk, num_boost_round = num_boost_round_,  
-                          early_stopping_rounds = 0.1 * num_boost_round_, 
-                          evals = [(chunk, 'train'), (val, 'eval')], evals_result = evals_result_, 
-                          verbose_eval = False, xgb_model = model)
-        print('Validation set auc --> %f' % model.best_score)
-    
-    epoch += 1
+reader = pd.read_hdf(inputpath + 'train_proc_train.h5', key = 'df', mode = 'r', 
+                     iterator = True, chunksize = chunksize_, stop = 1 * chunksize_)
 
+chunk_n = 1
+for chunk in reader:
+    # Shuffle the chunk
+    chunk = chunk.sample(frac = 1)
+    # Pre-process the chunk
+    chunk = model_preproc(chunk)
+    labels = np.copy(chunk[:, 0])
+    chunk = chunk[:, 1:]
+    chunk = xgb.DMatrix(chunk, labels)
+    # Fit the model
+    model = xgb.train(params, chunk, num_boost_round = num_boost_round_,  
+                      early_stopping_rounds = 0.1 * num_boost_round_, 
+                      evals = [(chunk, 'train'), (val, 'eval')], 
+                      verbose_eval = False, xgb_model = model)
+    print('Chunk count: %i, Validation set auc: %f' % (chunk_n, model.best_score))
+    chunk_n += 1
+    
 toc = dt.datetime.now()
 
 # preds = model.predict(val[:, 1:])
 
 # pd.crosstab(preds, val[:, 0], normalize = True)
 
-# PENALTY = l2
-# Validation set area under the ROC curve after 1 epochs: 0.728688
-# Validation set area under the ROC curve after 2 epochs: 0.728692
-# Validation set area under the ROC curve after 3 epochs: 0.728703
-# Time in seconds - 2270.553519
-
-# Cross Tab
-# col_0       0.0       1.0
-# row_0                    
-# 0      0.218628  0.202718
-# 1      0.124740  0.453915
+# Chunk count: 1, Validation set auc: 0.735882
 
