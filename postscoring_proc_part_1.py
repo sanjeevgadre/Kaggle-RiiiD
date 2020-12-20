@@ -23,8 +23,8 @@ userscores[idx, 1:8] = np.mean(userscores[:, 1:8], axis = 0)
 # Clip part userscores to within 2-sigma range for respective part scores
 mean = np.mean(userscores[:, 1:8], axis = 0)
 sigma = np.std(userscores[:, 1:8], axis = 0)
-two_sigma_range = two_sigma_range = np.concatenate(((mean - 2*sigma).reshape(-1, 1), 
-                                                    (mean + 2*sigma).reshape(-1, 1)), axis = 1)
+two_sigma_range = np.concatenate(((mean - 2*sigma).reshape(-1, 1), 
+                                  (mean + 2*sigma).reshape(-1, 1)), axis = 1)
 for i in range(7):
     userscores[:, i + 1] = np.clip(userscores[:, i + 1], two_sigma_range[i, 0], two_sigma_range[i, 1])
     

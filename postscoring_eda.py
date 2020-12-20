@@ -13,11 +13,11 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 
 #%% Helper variables
-datapath = './data/'
+DATAPATH = './data/'
 
 #%% Userscores from mean run
 
-userscores = np.genfromtxt(datapath + 'userscores.csv', delimiter = ',')
+userscores = np.genfromtxt(DATAPATH + 'userscores.csv', delimiter = ',')
 
 len(userscores[userscores[:, 8] == 0])
 # 88 users remain unscored (unprocessed) after 113M transactions i.e 0.02%
@@ -32,20 +32,21 @@ sigma = np.std(userscores[:, 1:8], axis = 0)
 # Std dev. (after 3rd reward policy )- [0.20179399, 0.21116786, 0.25834561, 0.25590359, 0.58923841, 0.21340565, 0.22842549]
     # The dispersion in userscores has come down dramatically after the reward policy change; ergo the change was appropriate
 
-np.std(userscores[:, 1:8], axis = 0) / np.mean(userscores[:, 1:8], axis = 0)
-# Coeff. of var. (after 3rd reward policy) - 6.83604271, 3.6668316 , 5.42533904, 5.66686651, 2.89190371, 4.70315931, 6.17867076]
+print("Coeff. of Variance for userscores -->", 
+      np.std(userscores[:, 1:8], axis = 0) / np.mean(userscores[:, 1:8], axis = 0))
+# 6.83604271, 3.6668316 , 5.42533904, 5.66686651, 2.89190371, 4.70315931, 6.17867076]
 
 two_sigma_range = np.concatenate(((mean - 2*sigma).reshape(-1, 1), 
                                   (mean + 2*sigma).reshape(-1, 1)), axis = 1)
 
 fig, axs = plt.subplots(nrows = 4, ncols = 2, figsize = (10, 15))
-col_ = 1
+COL = 1
 for r in range(4):
     for c in range(2):
-        if col_ < 8:
-            axs[r, c].hist(userscores[:, col_], bins = 100, log = True,
-                           range = (two_sigma_range[col_ - 1, 0], two_sigma_range[col_ - 1, 1]))
-            col_ += 1
+        if COL < 8:
+            axs[r, c].hist(userscores[:, COL], bins = 100, log = True,
+                           range = (two_sigma_range[COL - 1, 0], two_sigma_range[COL - 1, 1]))
+            COL += 1
 
 plt.savefig('./foo.jpg')
 plt.show()
@@ -76,13 +77,13 @@ corr_coef_ = np.corrcoef(userscores[userscores[:, 8] == 1, 1:8], rowvar = False)
 # There is no meaningful pairwise correlation amongst the part scores
 
 pca_ = PCA().fit(userscores[userscores[:, 8] == 1, 1:8])
-pca_.explained_variance_ratio_
+print("Variance explained by principal components --> \n", pca_.explained_variance_ratio_)
 # [0.57991909, 0.15799407, 0.06727159, 0.05358795, 0.05127978, 0.04694441, 0.04300311]
 # The combined variance explained by the two principal components point to likely interaction between
 # the scores when building a parametric linear model.
 
 #%% Questions
-ques = np.genfromtxt(datapath + 'ques.csv', delimiter = ',')
+ques = np.genfromtxt(DATAPATH + 'ques.csv', delimiter = ',')
 
 len(ques[ques[:, 2] == 0])
 # 4 questions remain unasked after 145M transactions
@@ -92,19 +93,19 @@ np.mean(ques[ques[:, 2] != 0, 3])
 
 # Correct Attempt Prob
 fig, axs = plt.subplots(nrows = 4, ncols = 2, figsize = (10, 15))
-col_ = 1
+COL = 1
 for r in range(4):
     for c in range(2):
-        if col_ < 8:
-            axs[r, c].hist(ques[ques[:, 1] == col_, 3], bins = 100)
-            col_ += 1
+        if COL < 8:
+            axs[r, c].hist(ques[ques[:, 1] == COL, 3], bins = 100)
+            COL += 1
 
 plt.savefig('./foo.jpg')
 plt.show()
 
 
 #%% Lectures
-lecs = np.genfromtxt(datapath + 'lecs.csv', delimiter = ',')
+lecs = np.genfromtxt(DATAPATH + 'lecs.csv', delimiter = ',')
 
 len(lecs[lecs[:, 2] == 0])
 # 3 lectures remain without a single view after 145M transactions
