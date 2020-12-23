@@ -48,7 +48,6 @@ cols_ = ['answered_correctly', 'prior_question_had_explanation',
 # read the h5 file
 reader = pd.read_hdf(INPUTPATH + 'train_proc.h5', 'df', mode = 'r', iterator = True,
                      chunksize = 10**6)
-
 for chunk in reader:
     chunk = chunk.loc[:, cols_]
     mask = np.isin(chunk.index, val_idx, assume_unique = True)

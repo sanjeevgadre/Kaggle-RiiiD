@@ -17,7 +17,7 @@ import xgboost as xgb
 
 #%% Helper variables
 inputpath = './data/'
-chunksize_ = 4 * 10**6
+chunksize_ = 10 * 10**6
 
 # OneHotEncoder to encode the questions part number
 part_enc = OneHotEncoder(categories = [np.arange(1, 8, 1)], dtype = 'int', sparse = False)
@@ -76,7 +76,7 @@ for chunk in reader:
     model = xgb.train(params, chunk, num_boost_round = num_boost_round_,  
                       early_stopping_rounds = 0.1 * num_boost_round_, 
                       evals = [(chunk, 'train'), (val, 'eval')], 
-                      verbose_eval = False, xgb_model = model)
+                      xgb_model = model)
     print('Chunk count: %i, Validation set auc: %f' % (chunk_n, model.best_score))
     chunk_n += 1
     
@@ -86,5 +86,7 @@ toc = dt.datetime.now()
 
 # pd.crosstab(preds, val[:, 0], normalize = True)
 
-# Chunk count: 1, Validation set auc: 0.735882
+# Chunk count: 1, Validation set auc: 0.735882 Trg size 4*10**6
 
+# Chunk count: 1, Validation set auc: 0.733444 Trg size 4*10**6
+# Chunk count: 1, Validation set auc: 0.734113 Trg size 10*10**6
