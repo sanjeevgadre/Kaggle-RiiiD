@@ -37,26 +37,43 @@ train = lgb.Dataset(train, labels, feature_name = 'auto', categorical_feature = 
 params = {
     'objective': 'binary',
     'metric' : 'auc',
-    'first_metric_only' : True,
     'verbosity' : -1,
-    'boosting_type' : 'gbdt',
-    'num_threads' : 2
+    'early_stopping_rounds' : 100,
+    'num_threads' : 2    
 }
 # Tune the model
-model = lgb.train(params, train, verbose_eval = False,
-                  early_stopping_rounds = 100,
-                  valid_sets = [val, train], valid_names = ['eval', 'train'])
-
+model = lgb.train(params, train, valid_sets = [val], valid_names = ['eval'],
+                  verbose_eval = 250)
     
 toc = dt.datetime.now()
 print('Time taken: %f minutes' % ((toc-tic).total_seconds()/60))
 
 #%%
 
-val = pd.read_hdf(INPUTPATH + 'train_proc_val.h5', key = 'df', mode = 'r')
-val['part'] = val['part'].astype('category')
-preds = model.predict(val.iloc[:, 1:])
+best_params = model.params
 
-pd.crosstab(preds, val[:, 0], normalize = True)
+for key, value in best_params.items():
+       print("    {}: {}".format(key, value))
 
-# Chunk count: 1, Validation set auc: 0.734444 Trg size 10*10**6
+# Time Taken
+# 297.757965 minutes
+
+# Best Val Score
+# 'auc', 0.7424837025478946
+
+# Best Params
+# objective: binary
+# metric: auc
+# verbosity: -1
+# num_threads: 2
+# feature_pre_filter: False
+# lambda_l1: 0.00024028233686583582
+# lambda_l2: 6.228955556730153
+# num_leaves: 136
+# feature_fraction: 0.5
+# bagging_fraction: 0.9324985326382863
+# bagging_freq: 1
+# min_child_samples: 20
+# num_iterations: 1000
+# early_stopping_round: 100
+# categorical_column: [8]
