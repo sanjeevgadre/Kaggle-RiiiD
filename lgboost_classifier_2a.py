@@ -53,32 +53,9 @@ for chunk in reader:
     chunk_count += 1
 
 
-#%%
-
-best_params = model.params
-
-for key, value in best_params.items():
-       print("    {}: {}".format(key, value))
-
-# Time Taken
-# 297.757965 minutes
-
-# Best Val Score
-# 'auc', 0.7424837025478946
-
-# Best Params
-# objective: binary
-# metric: auc
-# verbosity: -1
-# num_threads: 2
-# feature_pre_filter: False
-# lambda_l1: 0.00024028233686583582
-# lambda_l2: 6.228955556730153
-# num_leaves: 136
-# feature_fraction: 0.5
-# bagging_fraction: 0.9324985326382863
-# bagging_freq: 1
-# min_child_samples: 20
-# num_iterations: 1000
-# early_stopping_round: 100
-# categorical_column: [8]
+'''
+Chunk count:  15
+Training until validation scores don't improve for 100 rounds
+Early stopping, best iteration is:
+[1383]	eval's auc: 0.740118
+'''

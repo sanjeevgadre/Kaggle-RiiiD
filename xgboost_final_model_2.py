@@ -16,7 +16,6 @@ import json
 
 #%% Helper variables
 INPUTPATH = './data/'
-CHUNKSIZE_ = 25 * 10**6
 
 # OneHotEncoder to encode the questions part number
 part_enc = OneHotEncoder(categories = [np.arange(1, 8, 1)], dtype = 'int', sparse = False)
@@ -43,32 +42,28 @@ def data_preproc(df):
 
 #%% Data
 # Setting up the validation set
-val = pd.read_hdf(INPUTPATH + 'train_proc_val.h5', key = 'df', mode = 'r')
-val = data_preproc(val)
-lab_val = np.copy(val[:, 0])
-val = val[:, 1:]
-val = xgb.DMatrix(val, lab_val)
-
+dval = xgb.DMatrix('./data/train_proc_val.csv?format=csv&label_column=0#dval.cache')
+lab_val = pd.read_csv('./data/train_proc_val.csv', usecols = [0])
 # Setting up the training set for initial model
-train_idx = np.random.choice(98278587, CHUNKSIZE_, replace = False)
-train = pd.read_hdf(INPUTPATH + 'train_proc_train.h5', 'df', mode = 'r', where = pd.Index(train_idx))
-train = train.sample(frac = 1)
-train = data_preproc(train)
-lab_train = np.copy(train[:, 0])
-train = train[:, 1:]
-train = xgb.DMatrix(train, lab_train)
-# releasing memory
-lab_train = None            
-train_idx = None
+dtrain = xgb.DMatrix('./data/train_proc_train.csv?format=csv&label_column=0#dtrain.cache')
 
 # Setting up the hyperparameters
+params = {
+    'verbosity' : 0,
+    'nthread' : 2,
+    'tree_method' : 'hist',
+    'objective' : 'binary:logistic'
+    }
+
+'''
 filehandle = INPUTPATH + 'tuned_params.json'
 with open(filehandle, 'r') as fh:
     params = json.load(fh)
+'''
     
 # Setting up the initial model
-model = xgb.train(params, train)
-probs = model.predict(val)
+model = xgb.train(params, dtrain)
+probs = model.predict(dval)
 probs = probs.reshape(-1, 2)
 auc = roc_auc_score(lab_val, probs[:, 1])
 print('Validation set auc: %.6f' % auc)
@@ -108,7 +103,7 @@ for e in range(EPOCHS):
         lab_chunk = None
         
         model = xgb.train(params, chunk, xgb_model = model)
-        probs = model.predict(val)
+        probs = model.predict(dval)
         probs = probs.reshape(-1, 2)
         auc = roc_auc_score(lab_val, probs[:, 1])
         print('After chunk: %i, Validation set auc: %.6f' % (chunk_count, auc))
