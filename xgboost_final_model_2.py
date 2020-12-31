@@ -73,7 +73,7 @@ print('Validation set auc: %.6f' % auc)
 # 25M random training records --> Validation set auc: 0.746901 
 
 #%% Save model for future use
-model.save_model(INPUTPATH + 'xgbmodel.bin')
+model.save_model(INPUTPATH + 'xgbmodel_all.bin')
 
 # foo = xgb.Booster(model_file = INPUTPATH + 'xgb10model.bin')
 
